@@ -35,7 +35,12 @@ def generate_schema_sql(database_url:str) -> List[str]:
 
     return schema_statements
 
-def queryRunner(database_url: str, sql_query: str) -> Dict[str, Optional[Any]]:
+def simpleAskFunction(**kwargs):
+    print(kwargs['query'])
+    r = input('Do you want to Execute this Query? (y/n)')
+    return ('y' in r.lower())
+
+def queryRunner(database_url: str, sql_query: str, ask_function = simpleAskFunction) -> Dict[str, Optional[Any]]:
     """
     Execute a SQL query using SQLAlchemy.
 
@@ -47,12 +52,14 @@ def queryRunner(database_url: str, sql_query: str) -> Dict[str, Optional[Any]]:
         Dict[str, Optional[Any]]: A dictionary containing the data and any error message.
     """
     engine = create_engine(database_url)
+    if not ask_function(query=sql_query):
+        return {"data": []}
     try:
         with engine.connect() as connection:
             result = connection.execute(text(sql_query))
             # Fetch all results if it's a SELECT query
             if sql_query.strip().lower().startswith('select'):
-                data = result.fetchall()
+                data = [list(x) for x in result.fetchall()]
             else:
                 data = None
         return {'data': data, 'error': None}
@@ -60,9 +67,11 @@ def queryRunner(database_url: str, sql_query: str) -> Dict[str, Optional[Any]]:
         return {'data': None, 'error': str(e)}
 
 # Example usage
+"""
 if __name__ == "__main__":
     DATABASE_URL = "sqlite:///sakila_master.db"  # Adjust for your database
     schema = generate_schema_sql(DATABASE_URL)
 
     # Print the schema (optional)
     print('\n'.join(schema))
+"""

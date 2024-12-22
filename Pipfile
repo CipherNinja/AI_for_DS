@@ -8,6 +8,12 @@ langchain = "*"
 langchain-community = "*"
 sqlalchemy = "*"
 tableschema-sql = "*"
+chainlit = "*"
+langgraph = "*"
+langchain-groq = "*"
+grandalf = "*"
+pandas = "*"
+tabulate = "*"
 
 [dev-packages]
 colorama = "*"

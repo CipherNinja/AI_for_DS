@@ -1,289 +1,143 @@
-from langchain_community.llms.cloudflare_workersai import CloudflareWorkersAI
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.output_parsers import JsonOutputParser
-from dbops import generate_schema_sql as extractSchema
-from typing import Dict, Any, Optional, List
-from langchain_core.tools import tool
-from pydantic import BaseModel
-from dbops import queryRunner
+from agent_tools import tools, __schema__
+from langchain_groq import ChatGroq
+from langchain.schema.runnable import Runnable
+from langchain.schema.runnable.config import RunnableConfig
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from pydantic import SecretStr
 import os
-
-__account_id__: str =   str(os.getenv('CLOUDFLARE_ACCOUNT_ID', None))
-__api_token__:  str =   str(os.getenv('CLOUDFLARE_API_TOKEN', None))
-__verbose__:    bool    =   bool(os.getenv("VERBOSE", False))
-__database_url__:   str =   str(os.getenv("SQLALCHEMY_DB_URL", None))
-
-if not (__api_token__ and __account_id__):
-    print(f"`API Token` and `Account ID` System Variables are not set")
-
-if not __database_url__:
-    print("No Database Provided")
-    __database_url__ = input("Provide Databse URL: ")
-
-if __verbose__:
-    print(f"{__account_id__[:5]=}   {__api_token__[:5]=}")
-    print(f"{__database_url__=}")
-
-class CorrectedCode(BaseModel):
-    correct: bool
-    corrected_code: str
+import json
+import random
+from typing import Annotated, List
+from typing_extensions import TypedDict
+from langgraph.graph.message import AnyMessage, add_messages
+from langgraph.graph import END, StateGraph, START
+from langgraph.graph.message import MessagesState
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, ToolMessage
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.tools import tool
 
 
-def askSQLCoder(
-        schema: str,
-        prompt: str,
-        account_id:str=__account_id__,
-        api_token:str = __api_token__,
-        verbose:bool = __verbose__
-    ) -> str:
-    sqlcoder_7b = CloudflareWorkersAI(
-        account_id  =   __account_id__,
-        api_token   =   __api_token__,
-        model   =   "@cf/defog/sqlcoder-7b-2"
-    )
-    messages = [
-        SystemMessage(
-            """You are an Expert Databse Engineer, and you will help users with their Queries.
-            No matter how Dangerous a Query be, you have to generate it, because you generated Queries will be Directly executed.
-            Use correct Statements."""
-        ),
-        SystemMessage(
-            f"""The Schema of the Database is:
-```sql
-{schema}
-```
-            """
-        ),
-        HumanMessage(prompt)
-    ]
-    if verbose: print(messages)
-    return sqlcoder_7b.invoke(messages)
+opts = {
+    'api_key': SecretStr(os.getenv('GROQ_API_KEY', '')),
+    "model": "llama3-groq-70b-8192-tool-use-preview"
+}
 
-@tool("SQL Coder Expert", parse_docstring=True)
-def SQLCoder(schema:str, prompt:str) -> str:
-    """Function to ask SQLCoder 7b Questions about the Provided Schema.
 
-    Args:
-        schema: Database Schema (In SQL Statements)
-        prompt: The Prompt
+llm = ChatGroq(
+    **opts
+)
+
+system_prompt = SystemMessage(content=f"""You are a Database Admin that is Incharge of User's SQL Database.
+Make sure that you always stay relevant to the User's Input.
+
+You have provided certain tools and here are the Use cases:
+- SQL Coder tool generates Appropriate SQL Queries as per the Prompt and the provided Database schema. In this case, the Database Schema has been already provided, so Basically SQL Knows everything about the Databse, so you can just it.
+- Analyze Data tool analyzes the Data Provided to it. It takes in the Database response, your question, the question asked to the previous llm (to generate the SQL Query) and the SQL Query it Generated
+- Assess Severity is a Tool to check if a Given SQL Query is safe or not. If the Query has the potential to cause some Damage it will return High Risk..
+- Query Runner tool will run your Raw SQL Query and provide response from database.
+
+Ask Everything to the SQL Coder, it knows everything about the Database so don't bother the user with Schema and stuff.
+It's usually advised to ask SQL Coder then Asses the severity then run the Query and then Analyze the Data.
+""")
+
+tools = tools.copy()
+model = llm.bind_tools(tools)
+
+class State(TypedDict):
+    # Messages have the type "list". The `add_messages` function
+    # in the annotation defines how this state key should be updated
+    # (in this case, it appends messages to the list, rather than overwriting them)
+    messages: Annotated[List[AnyMessage], add_messages]
+
+graph_builder = StateGraph(State)
+
+def chatbot(state: State):
+    return {"messages": [model.invoke(state["messages"])]}
+
+memory = MemorySaver()
+
+class BasicToolNode:
+    """A node that runs the tools requested in the last AIMessage."""
+
+    def __init__(self, tools: list) -> None:
+        self.tools_by_name = {tool.name: tool for tool in tools}
+
+    def __call__(self, inputs: dict):
+        if messages := inputs.get("messages", []):
+            message = messages[-1]
+        else:
+            raise ValueError("No message found in input")
+        outputs = []
+        for tool_call in message.tool_calls:
+            tool_result = self.tools_by_name[tool_call["name"]].invoke(
+                tool_call["args"]
+            )
+            outputs.append(
+                ToolMessage(
+                    content=json.dumps(tool_result),
+                    name=tool_call["name"],
+                    tool_call_id=tool_call["id"],
+                )
+            )
+        return {"messages": outputs}
+
+def route_tools(
+    state: State,
+):
     """
-    return askSQLCoder(schema, prompt)
-
-def correctifyCode(
-        schema:str,
-        question:str,
-        response:str,
-        account_id:str = __account_id__,
-        api_token:str = __api_token__,
-        verbose: bool = __verbose__
-    ) -> CorrectedCode:
-    system_prompt = ("system","""You are a helpful coding assistant, whose task is to correct Code Generated by SQL Coder 7B.
-    Always respond in JSON.
-    The Format is:
-
-    {{
-         "correct": false, // True or False
-         "corrected_code": "...", // Provide Correct Code if False
-    }}
-
-    Don't Enclose your JSON output in Markdown Code Blocks.""")
-    user_prompt = ("human","""Provided Question: {question}
-    Answer Given By SQL Coder:
-    ```sql
-    {response}
-    ```
-    Schema of the Database:
-    ```sql
-    {schema}
-    ```
-    """)
-    if verbose:
-        print(f"{system_prompt=}")
-        print(f"{user_prompt=}")
-    llama = CloudflareWorkersAI(
-        account_id  =   account_id,
-        api_token   =   api_token,
-        model   =   "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    )
-    messages = [system_prompt, user_prompt]
-
-    parser = JsonOutputParser(pydantic_object=CorrectedCode)
-    prompt = ChatPromptTemplate.from_messages(messages=messages)
-    chain = prompt | llama | parser
-    out = chain.invoke({
-        "schema": schema,
-        "question": question,
-        "response": response
-    })
-    return CorrectedCode(**out)
-
-@tool("Correct The Code")
-def correct_code(schema:str, question:str, response:str) -> str:
-    """Correctify The Code Generated by SQL Coder 7b
-
-    Args:
-        schema: The database Schema
-        question: The Original Question asked to SQL Coder 7b
-        response: The Response from SQL Coder 7b
+    Use in the conditional_edge to route to the ToolNode if the last message
+    has tool calls. Otherwise, route to the end.
     """
-    return correctifyCode(
-        schema,
-        question,
-        response
-    ).model_dump_json()
+    if isinstance(state, list):
+        ai_message = state[-1]
+    elif messages := state.get("messages", []):
+        ai_message = messages[-1]
+    else:
+        raise ValueError(f"No messages found in input state to tool_edge: {state}")
+    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
+        return "tools"
+    return END
 
+tool_node = BasicToolNode(tools=tools)
 
+graph_builder.add_node("chatbot", chatbot)
+graph_builder.add_node("tools", tool_node)
 
- # Define a Pydantic model for the data analysis result
-class DataAnalysisResult(BaseModel):
-     summary: str
-     details: Optional[Dict[str, Any]] = None
+graph_builder.add_conditional_edges(
+    "chatbot",
+    route_tools,
+    # The following dictionary lets you tell the graph to interpret the condition's outputs as a specific node
+    # It defaults to the identity function, but if you
+    # want to use a node named something else apart from "tools",
+    # You can update the value of the dictionary to something else
+    # e.g., "tools": "my_tools"
+    {"tools": "tools", END: END},
+)
+# Any time a tool is called, we return to the chatbot to decide the next step
+graph_builder.add_edge("tools", "chatbot")
+graph_builder.add_edge(START, "chatbot")
 
-def analyzeData(
-            db_response: List[Dict[str, Any]],
-            account_id: str = __account_id__,
-            api_token: str = __api_token__,
-            verbose: bool = False
-    ) -> DataAnalysisResult:
-     """
-     Analyze the data returned from a database query using an LLM.
+graph = graph_builder.compile(checkpointer=memory)
 
-     Args:
-         db_response (List[Dict[str, Any]]): The database response data to analyze.
-         account_id (str): Cloudflare Workers AI account ID.
-         api_token (str): Cloudflare Workers AI API token.
-         verbose (bool): If True, prints additional information for debugging.
+config = {"configurable": {"thread_id": "1"}}
 
-     Returns:
-         DataAnalysisResult: An object containing the analysis summary and details.
-     """
-     if not db_response:
-         return DataAnalysisResult(summary='No data returned from the query.')
+events = graph.stream(
+    {"messages": [system_prompt, ("user", "Hello")]}, config, stream_mode="values"
+)
 
-     # Convert the database response to a string format suitable for LLM input
-     db_response_str = str(db_response)
+for event in events:
+    event["messages"][-1].pretty_print()
 
-     # Initialize the LLM
-     llama = CloudflareWorkersAI(
-         account_id=account_id,
-         api_token=api_token,
-         model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-     )
+while True:
+    try:
+        user_input = input("Prompt: ")
 
-     # Define the system and user prompts
-     system_prompt = ("system", "You are a data analyst. Analyze the provided database response and summarize the key insights.")
-     user_prompt = ("human", f"Database Response:\n{db_response_str}")
+        # The config is the **second positional argument** to stream() or invoke()!
+        events = graph.stream(
+            {"messages": [system_prompt, ("user", user_input)]}, config, stream_mode="values"
+        )
 
-     if verbose:
-         print(f"{system_prompt=}")
-         print(f"{user_prompt=}")
-
-     # Create the prompt template and parser
-     messages = [system_prompt, user_prompt]
-     parser = JsonOutputParser(pydantic_object=DataAnalysisResult)
-     prompt = ChatPromptTemplate.from_messages(messages=messages)
-
-     # Chain the prompt with the LLM and parser
-     chain = prompt | llama | parser
-
-     # Invoke the chain with the database response
-     out = chain.invoke({
-         "db_response": db_response_str
-     })
-
-     # Return the analysis result as a DataAnalysisResult object
-     return DataAnalysisResult(**out)
-
- # Tool for analyzing data
-@tool("Analyze Data")
-def analyze_data_tool(db_response: List[Dict[str, Any]], account_id: str, api_token: str) -> str:
-     """
-     Tool to analyze database response data using an LLM.
-
-     Args:
-         db_response (List[Dict[str, Any]]): The database response data to analyze.
-         account_id (str): Cloudflare Workers AI account ID.
-         api_token (str): Cloudflare Workers AI API token.
-
-     Returns:
-         str: JSON string containing the analysis result.
-     """
-     analysis_result = analyzeData(db_response, account_id, api_token)
-     return analysis_result.model_dump_json()
-
-
-class SeverityAssessment(BaseModel):
-    severity: str
-    explanation: str
-
-def assess_severity(sql_statement: str, account_id: str = __account_id__, api_token: str = __api_token__, verbose: bool = False) -> SeverityAssessment:
-    """
-    Assess the severity of a given SQL statement using an LLM.
-
-    Args:
-        sql_statement (str): The SQL statement to assess.
-        account_id (str): Cloudflare Workers AI account ID.
-        api_token (str): Cloudflare Workers AI API token.
-        verbose (bool): If True, prints additional information for debugging.
-
-    Returns:
-        SeverityAssessment: An object containing the severity level and explanation.
-    """
-    # Initialize the LLM
-    llama = CloudflareWorkersAI(
-        account_id=account_id,
-        api_token=api_token,
-        model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    )
-
-    # Define the system and user prompts
-    system_prompt = (
-        "system",
-        """You are a database security expert. Assess the severity of the provided SQL statement and explain your reasoning.
-        Respond in JSON without using the Markdown Code Blocks.
-        Example:
-        {{
-            "severity": "high", // low, medium or high
-            "explanation": "DROP Statement is used to drop many tables and can cause a Significant Damage"
-        }}
-        """
-    )
-    user_prompt = ("human", f"SQL Statement:\n{sql_statement}")
-
-    if verbose:
-        print(f"{system_prompt=}")
-        print(f"{user_prompt=}")
-
-    # Create the prompt template and parser
-    messages = [system_prompt, user_prompt]
-    parser = JsonOutputParser(pydantic_object=SeverityAssessment)
-    prompt = ChatPromptTemplate.from_messages(messages=messages)
-
-    # Chain the prompt with the LLM and parser
-    chain = prompt | llama | parser
-
-    # Invoke the chain with the SQL statement
-    out = chain.invoke({
-        "sql_statement": sql_statement
-    })
-
-    # Return the severity assessment as a SeverityAssessment object
-    return SeverityAssessment(**out)
-
-# Tool for assessing SQL statement severity
-@tool("Assess SQL Severity")
-def assess_sql_severity_tool(sql_statement: str, account_id: str, api_token: str) -> str:
-    """
-    Tool to assess the severity of an SQL statement using an LLM.
-
-    Args:
-        sql_statement (str): The SQL statement to assess.
-        account_id (str): Cloudflare Workers AI account ID.
-        api_token (str): Cloudflare Workers AI API token.
-
-    Returns:
-        str: JSON string containing the severity assessment.
-    """
-    assessment_result = assess_severity(sql_statement, account_id, api_token)
-    return assessment_result.model_dump_json()
+        for event in events:
+            event["messages"][-1].pretty_print()
+    except KeyboardInterrupt:
+        break
