@@ -16,6 +16,8 @@ from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, To
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import tool
 
+print("Module Imported")
+
 
 opts = {
     'api_key': SecretStr(os.getenv('GROQ_API_KEY', '')),
@@ -38,6 +40,20 @@ You have provided certain tools and here are the Use cases:
 
 Ask Everything to the SQL Coder, it knows everything about the Database so don't bother the user with Schema and stuff.
 It's usually advised to ask SQL Coder then Asses the severity then run the Query and then Analyze the Data.
+Don't echo the Response of tool call, as it can get annoying for the user.
+
+Note: Always enclose code blocks in Markdown Code Block Format example:
+    ```sql
+    select * from table;
+    ```
+
+    or
+
+    ```json
+    {{
+        "foo": "bar"
+    }}
+    ```
 """)
 
 tools = tools.copy()
@@ -121,23 +137,24 @@ graph = graph_builder.compile(checkpointer=memory)
 
 config = {"configurable": {"thread_id": "1"}}
 
-events = graph.stream(
-    {"messages": [system_prompt, ("user", "Hello")]}, config, stream_mode="values"
-)
+if __name__ == "__main__":
+    events = graph.stream(
+        {"messages": [system_prompt, ("user", "Hello")]}, config, stream_mode="values"
+    )
 
-for event in events:
-    event["messages"][-1].pretty_print()
+    for event in events:
+        event["messages"][-1].pretty_print()
 
-while True:
-    try:
-        user_input = input("Prompt: ")
+    while True:
+        try:
+            user_input = input("Prompt: ")
 
-        # The config is the **second positional argument** to stream() or invoke()!
-        events = graph.stream(
-            {"messages": [system_prompt, ("user", user_input)]}, config, stream_mode="values"
-        )
+            # The config is the **second positional argument** to stream() or invoke()!
+            events = graph.stream(
+                {"messages": [system_prompt, ("user", user_input)]}, config, stream_mode="values"
+            )
 
-        for event in events:
-            event["messages"][-1].pretty_print()
-    except KeyboardInterrupt:
-        break
+            for event in events:
+                event["messages"][-1].pretty_print()
+        except KeyboardInterrupt:
+            break

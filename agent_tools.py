@@ -343,7 +343,7 @@ def run_query_tool(query:str):
     """
     global __database_url__
     print(__database_url__)
-    return queryRunner(__database_url__, query)
+    return queryRunner(__database_url__, query, ask_function=(lambda query: True))
 
 @tool("FormatMarkdownTable", parse_docstring=True)
 def makeMDTable(data: str):
