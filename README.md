@@ -22,6 +22,7 @@ AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL da
 
 1. Clone this repository:
    ```bash
+   pip install pipenv
    git clone https://github.com/NotoriousArnav/aids.git
    cd aids
    ```
