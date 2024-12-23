@@ -1,6 +1,12 @@
 # AI Database Solution (AIDS)
+![GitHub License](https://img.shields.io/github/license/NotoriousArnav/aids)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/t/NotoriousArnav/aids)
+![GitHub contributors](https://img.shields.io/github/contributors/NotoriousArnav/aids)
+![GitHub forks](https://img.shields.io/github/forks/NotoriousArnav/aids)
+![GitHub language count](https://img.shields.io/github/languages/count/NotoriousArnav/aids)
 
-![Mascot](mascot.nobg.png)
+<img src="mascot.nobg.png" alt="drawing" width="80"/>
+
 
 AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL database operations. The system interprets natural language inputs to generate and execute SQL queries, improving efficiency and reducing manual effort.
 
@@ -66,7 +72,7 @@ AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL da
 - Pipenv for dependency management
 
 ## Material
-<iframe width="560" height="315" src="https://www.youtube.com/embed/l61xNQLrZ5E?si=OHwjelyswGwwgJ5V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[![Project Update](https://img.youtube.com/vi/l61xNQLrZ5E/0.jpg)](https://www.youtube.com/watch?v=l61xNQLrZ5E)
 
 ## License
 
