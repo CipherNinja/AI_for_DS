@@ -1,0 +1,10 @@
+# These are API tokens of the Services used
+CLOUDFLARE_API_TOKEN=""
+CLOUDFLARE_ACCOUNT_ID=""
+GROQ_API_KEY=""
+SQLALCHEMY_DB_URL=""
+# Langchain Environment variables are for Tracebacks in Langsmith
+LANGCHAIN_TRACING_V2=
+LANGCHAIN_ENDPOINT=""
+LANGCHAIN_API_KEY=""
+LANGCHAIN_PROJECT=""

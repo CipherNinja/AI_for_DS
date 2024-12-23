@@ -13,9 +13,14 @@ langchain-groq = "*"
 grandalf = "*"
 pandas = "*"
 tabulate = "*"
+gunicorn = "*"
 
 [dev-packages]
 colorama = "*"
 
 [requires]
 python_version = "3.12"
+
+[scripts]
+server = "gunicorn --bind 0.0.0.0:8080 app:me"
+cli_agent = "python3 agent.py"
