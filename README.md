@@ -1,5 +1,7 @@
 # AI Database Solution (AIDS)
 
+![Mascot](mascot.nobg.png)
+
 AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL database operations. The system interprets natural language inputs to generate and execute SQL queries, improving efficiency and reducing manual effort.
 
 ## Features
@@ -23,12 +25,15 @@ AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL da
    pipenv install
    ```
 
-3. Set up environment variables. Create a `.env` file in the root directory and add the following:
+3. Set up environment variables. Create a `.env` file in the root directory (copy or rename the '.env copy') and add the following:
    ```bash
    CLOUDFLARE_API_TOKEN="your_token_here"
    CLOUDFLARE_ACCOUNT_ID="your_account_id_here"
    GROQ_API_KEY="your_api_key_here"
    SQLALCHEMY_DB_URL="your_database_url_here"
+   ```
+   and maybe even these for Easier debugging
+   ```bash
    LANGCHAIN_TRACING_V2="your_tracing_version_here"
    LANGCHAIN_ENDPOINT="your_endpoint_here"
    LANGCHAIN_API_KEY="your_api_key_here"
@@ -59,6 +64,9 @@ AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL da
 
 - Python 3.8 or higher
 - Pipenv for dependency management
+
+## Material
+<iframe width="560" height="315" src="https://www.youtube.com/embed/l61xNQLrZ5E?si=OHwjelyswGwwgJ5V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## License
 
