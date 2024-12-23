@@ -5,7 +5,7 @@
 ![GitHub forks](https://img.shields.io/github/forks/NotoriousArnav/aids)
 ![GitHub language count](https://img.shields.io/github/languages/count/NotoriousArnav/aids)
 
-<img src="mascot.nobg.png" alt="drawing" width="80"/>
+<img src="mascot.nobg.png" alt="drawing" width="200"/>
 
 
 AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL database operations. The system interprets natural language inputs to generate and execute SQL queries, improving efficiency and reducing manual effort.
