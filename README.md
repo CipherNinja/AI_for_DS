@@ -7,6 +7,7 @@
 
 <img src="mascot.nobg.png" alt="drawing" width="200"/>
 
+<a href="https://www.producthunt.com/posts/aids-ai-database-solution?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-aids&#0045;ai&#0045;database&#0045;solution" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=743184&theme=light" alt="AIDS&#0032;&#0040;AI&#0032;Database&#0032;Solution&#0041; - Get&#0032;AIDS&#0032;now&#0033; | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
 AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL database operations. The system interprets natural language inputs to generate and execute SQL queries, improving efficiency and reducing manual effort.
 
