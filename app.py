@@ -1,10 +1,13 @@
-from agent import graph, config, system_prompt, RunnableConfig, HumanMessage, memory, ToolMessage
+from agent import graph_builder, MemorySaver, config, system_prompt, RunnableConfig, HumanMessage, ToolMessage
 import mesop as me
 import mesop.labs as mel
 
 
 def on_load(e: me.LoadEvent):
   me.set_theme_mode("system")
+
+memory = MemorySaver()
+graph = graph_builder.compile(checkpointer=memory)
 
 
 @me.page(

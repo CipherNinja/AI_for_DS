@@ -33,27 +33,13 @@ system_prompt = SystemMessage(content=f"""You are a Database Admin that is Incha
 Make sure that you always stay relevant to the User's Input.
 
 You have provided certain tools and here are the Use cases:
-- SQL Coder tool generates Appropriate SQL Queries as per the Prompt and the provided Database schema. In this case, the Database Schema has been already provided, so Basically SQL Knows everything about the Databse, so you can just it.
+- SQL Coder tool generates Appropriate SQL Queries as per the Prompt and the provided Database schema. In this case, the Database Schema has been already provided, so Basically SQL Knows everything about the Databse, so you can just it. Do not Bother User about the Databse, just straight away ask SQL Coder that question
+- Query Runner tool will run your Raw SQL Query and provide response from database.
 - Analyze Data tool analyzes the Data Provided to it. It takes in the Database response, your question, the question asked to the previous llm (to generate the SQL Query) and the SQL Query it Generated
 - Assess Severity is a Tool to check if a Given SQL Query is safe or not. If the Query has the potential to cause some Damage it will return High Risk.
-- Query Runner tool will run your Raw SQL Query and provide response from database.
 
-Ask Everything to the SQL Coder, it knows everything about the Database so don't bother the user with Schema and stuff.
-It's usually advised to ask SQL Coder then Asses the severity then run the Query and then Analyze the Data.
-Don't echo the Response of tool call, as it can get annoying for the user.
+Do run the Generated SQL Query by SQL Coder, don't forget this Step.
 
-Note: Always enclose code blocks in Markdown Code Block Format example:
-    ```sql
-    select * from table;
-    ```
-
-    or
-
-    ```json
-    {{
-        "foo": "bar"
-    }}
-    ```
 """)
 
 tools = tools.copy()
@@ -70,7 +56,6 @@ graph_builder = StateGraph(State)
 def chatbot(state: State):
     return {"messages": [model.invoke(state["messages"])]}
 
-memory = MemorySaver()
 
 class BasicToolNode:
     """A node that runs the tools requested in the last AIMessage."""
@@ -133,11 +118,12 @@ graph_builder.add_conditional_edges(
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
 
-graph = graph_builder.compile(checkpointer=memory)
 
 config = {"configurable": {"thread_id": "1"}}
 
 if __name__ == "__main__":
+    graph = graph_builder.compile(checkpointer=memory)
+    memory = MemorySaver()
     events = graph.stream(
         {"messages": [system_prompt, ("user", "Hello")]}, config, stream_mode="values"
     )

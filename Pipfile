@@ -14,6 +14,7 @@ grandalf = "*"
 pandas = "*"
 tabulate = "*"
 gunicorn = "*"
+dataclasses = "*"
 
 [dev-packages]
 colorama = "*"
