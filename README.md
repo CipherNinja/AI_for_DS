@@ -12,8 +12,7 @@
 AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL database operations. The system interprets natural language inputs to generate and execute SQL queries, improving efficiency and reducing manual effort.
 
 ## Current Goals
-- Make WebUI Better
-    - Shift away from Mesop and go towards DIY
+- Make UI for Useful
 - Add Data Visualization
 - Add Auth to manage User Roles
 
@@ -85,4 +84,3 @@ AI Database Solution (AIDS) is an AI-driven platform designed to automate SQL da
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-

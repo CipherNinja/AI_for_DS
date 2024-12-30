@@ -134,7 +134,8 @@ def SQLCoder(prompt:str) -> str:
         prompt: The Prompt
     """
     global __database_url__
-    schema = '\n'.join(extractSchema(__database_url__))
+    global __schema__
+    schema = __schema__
     return correctifyCode(schema, prompt, askSQLCoder(schema, prompt)).corrected_code
 
  # Define a Pydantic model for the data analysis result

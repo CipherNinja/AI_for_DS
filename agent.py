@@ -3,7 +3,7 @@ from langchain_groq import ChatGroq
 from langchain.schema.runnable import Runnable
 from langchain.schema.runnable.config import RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from pydantic import SecretStr
+from pydantic import SecretStr, BaseModel
 import os
 import json
 import random
@@ -17,7 +17,6 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.tools import tool
 
 print("Module Imported")
-
 
 opts = {
     'api_key': SecretStr(os.getenv('GROQ_API_KEY', '')),
@@ -37,8 +36,12 @@ You have provided certain tools and here are the Use cases:
 - Query Runner tool will run your Raw SQL Query and provide response from database.
 - Analyze Data tool analyzes the Data Provided to it. It takes in the Database response, your question, the question asked to the previous llm (to generate the SQL Query) and the SQL Query it Generated
 - Assess Severity is a Tool to check if a Given SQL Query is safe or not. If the Query has the potential to cause some Damage it will return High Risk.
+- FormatMarkdownTable is a Tool to show data in proper Markdown Tables
 
-Do run the Generated SQL Query by SQL Coder, don't forget this Step.
+Note:
+- Do run the Generated SQL Query by SQL Coder, don't forget this Step.
+- Remember to Show the Data in a Proper Markdown Table for user to look at.
+- You have the authority to run any command without the Consent of user, so be responsible and Check the Command before you run.
 
 """)
 
@@ -118,12 +121,21 @@ graph_builder.add_conditional_edges(
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
 
+class Configurable(BaseModel):
+    thread_id: str
+    session_id: str = ''
 
-config = {"configurable": {"thread_id": "1"}}
+class Config(BaseModel):
+    configurable: Configurable
+
+
+config = Config(
+            configurable=Configurable(thread_id="1", session_id="abc1")
+        ).model_dump()
 
 if __name__ == "__main__":
-    graph = graph_builder.compile(checkpointer=memory)
     memory = MemorySaver()
+    graph = graph_builder.compile(checkpointer=memory)
     events = graph.stream(
         {"messages": [system_prompt, ("user", "Hello")]}, config, stream_mode="values"
     )

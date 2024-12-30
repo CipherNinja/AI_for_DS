@@ -13,8 +13,10 @@ langchain-groq = "*"
 grandalf = "*"
 pandas = "*"
 tabulate = "*"
-gunicorn = "*"
-dataclasses = "*"
+pydantic = "*"
+fastapi = "*"
+uvicorn = "*"
+chainlit = {git = "https://github.com/Chainlit/chainlit.git", subdirectory = "backend/"}
 
 [dev-packages]
 colorama = "*"
@@ -23,5 +25,5 @@ colorama = "*"
 python_version = "3.12"
 
 [scripts]
-server = "gunicorn --bind 0.0.0.0:8080 app:me"
+server = "chainlit run chainlit_app.py -w"
 cli_agent = "python3 agent.py"
