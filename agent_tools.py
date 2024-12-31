@@ -239,7 +239,7 @@ def analyze_data_tool(
         generated_sql_query: str,
         question: str,
     ) -> str:
-     """
+    """
      Tool to analyze database response data using an LLM. Will Check The Databse Output and Compare it with the Question for Previous LLM and its Generated SQL Statement
 
      Args:
@@ -250,15 +250,16 @@ def analyze_data_tool(
 
      Returns:
          str: JSON string containing the analysis result.
-     """
-     analysis_result = analyzeData(
-         db_response,
-         question_for_prev_llm,
-         generated_sql_query,
-         question
-     )
-     return analysis_result.model_dump_json()
-
+    """
+    analysis_result = analyzeData(
+        db_response,
+        question_for_prev_llm,
+        generated_sql_query,
+        question
+    )
+    if analysis_result:
+        return analysis_result.model_dump_json()
+    return {}
 
 class SeverityAssessment(BaseModel):
     severity: str
@@ -335,7 +336,7 @@ def assess_sql_severity_tool(sql_statement: str) -> str:
     assessment_result = assess_severity(sql_statement)
     return assessment_result.model_dump_json()
 
-@tool("Query Runner")
+@tool("Query Runner") #<- Prototype
 def run_query_tool(query:str):
     """Run any SQL Query on the Attached Database
 
@@ -362,7 +363,6 @@ tools = [
     analyze_data_tool,
     assess_sql_severity_tool,
     SQLCoder,
-    run_query_tool,
     makeMDTable
 ]
 

@@ -1,5 +1,5 @@
-from agent_tools import tools, __schema__
-from langchain_groq import ChatGroq
+from agent_tools import tools, __schema__, run_query_tool
+from chat_llm import llm
 from langchain.schema.runnable import Runnable
 from langchain.schema.runnable.config import RunnableConfig
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -18,16 +18,6 @@ from langchain_core.tools import tool
 
 print("Module Imported")
 
-opts = {
-    'api_key': SecretStr(os.getenv('GROQ_API_KEY', '')),
-    "model": "llama3-groq-70b-8192-tool-use-preview"
-}
-
-
-llm = ChatGroq(
-    **opts
-)
-
 system_prompt = SystemMessage(content=f"""You are a Database Admin that is Incharge of User's SQL Database.
 Make sure that you always stay relevant to the User's Input.
 
@@ -42,10 +32,10 @@ Note:
 - Do run the Generated SQL Query by SQL Coder, don't forget this Step.
 - Remember to Show the Data in a Proper Markdown Table for user to look at.
 - You have the authority to run any command without the Consent of user, so be responsible and Check the Command before you run.
-
 """)
 
 tools = tools.copy()
+tools.append(run_query_tool)
 model = llm.bind_tools(tools)
 
 class State(TypedDict):
@@ -54,11 +44,8 @@ class State(TypedDict):
     # (in this case, it appends messages to the list, rather than overwriting them)
     messages: Annotated[List[AnyMessage], add_messages]
 
-graph_builder = StateGraph(State)
-
 def chatbot(state: State):
     return {"messages": [model.invoke(state["messages"])]}
-
 
 class BasicToolNode:
     """A node that runs the tools requested in the last AIMessage."""
@@ -104,20 +91,15 @@ def route_tools(
 
 tool_node = BasicToolNode(tools=tools)
 
+graph_builder = StateGraph(State)
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_node("tools", tool_node)
 
 graph_builder.add_conditional_edges(
     "chatbot",
     route_tools,
-    # The following dictionary lets you tell the graph to interpret the condition's outputs as a specific node
-    # It defaults to the identity function, but if you
-    # want to use a node named something else apart from "tools",
-    # You can update the value of the dictionary to something else
-    # e.g., "tools": "my_tools"
     {"tools": "tools", END: END},
 )
-# Any time a tool is called, we return to the chatbot to decide the next step
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge(START, "chatbot")
 
@@ -128,10 +110,12 @@ class Configurable(BaseModel):
 class Config(BaseModel):
     configurable: Configurable
 
-
 config = Config(
             configurable=Configurable(thread_id="1", session_id="abc1")
         ).model_dump()
+
+
+
 
 if __name__ == "__main__":
     memory = MemorySaver()
