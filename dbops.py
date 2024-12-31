@@ -53,7 +53,7 @@ def queryRunner(database_url: str, sql_query: str, ask_function = simpleAskFunct
     """
     engine = create_engine(database_url)
     if not ask_function(query=sql_query):
-        return {"data": [], 'error': 'User did not Consent'}
+        return {"data": []}
     try:
         with engine.connect() as connection:
             result = connection.execute(text(sql_query))
